@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex,nofollow,noarchive">
+  <meta name="theme-color" content="#111827">
+  <title>Acesso aos Cursos</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <main class="container">
+    <section class="card" id="accessCard">
+      <div class="brand">CURSOS • ACESSO RESTRITO</div>
+      <h1>Acesso ao grupo</h1>
+      <p class="muted">Selecione o curso e informe o telefone cadastrado para liberar o grupo correspondente.</p>
+
+      <form id="accessForm" novalidate>
+        <label for="course">Curso</label>
+        <select id="course" name="course" required></select>
+        <div id="courseDescription" class="help-inline">Selecione o curso para continuar.</div>
+
+        <label for="phone">Telefone</label>
+        <input
+          id="phone"
+          name="phone"
+          type="tel"
+          inputmode="numeric"
+          autocomplete="tel"
+          placeholder="(74) 99999-1234"
+          maxlength="15"
+          aria-describedby="phoneHelp"
+          required
+        >
+        <div id="phoneHelp" class="help-inline">Aceita DDD + 8 ou 9 dígitos.</div>
+        <button id="checkButton" type="submit">Verificar acesso</button>
+      </form>
+
+      <div id="status" class="status" role="status" aria-live="polite"></div>
+    </section>
+
+    <section class="card hidden" id="successCard" aria-hidden="true">
+      <div class="success">✓ ACESSO AUTORIZADO</div>
+      <h2>Seu acesso foi confirmado</h2>
+      <p id="selectedCourse" class="course-name"></p>
+      <p class="muted">O link do grupo foi liberado somente após a validação.</p>
+      <a id="whatsappButton" class="whatsapp" href="#" target="_blank" rel="noopener noreferrer">
+        Entrar no grupo do WhatsApp
+      </a>
+      <button id="logoutButton" class="secondary" type="button">Voltar</button>
+    </section>
+
+    <footer>Este site usa apenas HTML, CSS e JavaScript. Não há servidor próprio.</footer>
+  </main>
+
+  <script src="dados/authorized.js" defer></script>
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

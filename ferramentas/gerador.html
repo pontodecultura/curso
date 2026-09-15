@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Gerador offline — múltiplos cursos</title>
+<style>
+:root{--bg:#0b1120;--card:#111827;--line:#243041;--text:#f3f4f6;--muted:#9ca3af;--blue:#2563eb;--ok:#86efac;--err:#fca5a5;--danger:#f87171}
+*{box-sizing:border-box}body{margin:0;padding:24px;font-family:Arial,sans-serif;background:var(--bg);color:var(--text)}main{width:min(100%,980px);margin:auto}.box{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:22px;margin-bottom:18px}h1{margin-top:0}label{display:block;margin:16px 0 7px;font-weight:700}input,textarea{width:100%;background:#0f172a;color:#fff;border:1px solid #374151;border-radius:10px;padding:12px;font:inherit}textarea{resize:vertical}button{border:0;border-radius:10px;background:var(--blue);color:white;font-weight:700;padding:13px 18px;cursor:pointer}button:disabled{opacity:.6;cursor:wait}.muted{color:var(--muted);line-height:1.55}.ok{color:var(--ok)}.err{color:var(--err)}code{word-break:break-all}.course{border:1px solid var(--line);border-radius:14px;padding:18px;margin-top:16px;background:#0f172a}.course-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}.toolbar{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}.secondary{background:#374151}.danger{background:#991b1b}.toolbar button{flex:1;min-width:180px}.small{font-size:12px;color:var(--muted)}@media(max-width:700px){.course-grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<main>
+<section class="box">
+<h1>Gerador offline — múltiplos cursos</h1>
+<p class="muted">Crie vários cursos. Cada curso pode ter seu próprio link de WhatsApp e uma lista independente de telefones autorizados. Todo o processamento ocorre no navegador.</p>
+
+<div id="courses"></div>
+
+<div class="toolbar">
+  <button id="addCourse" type="button">+ Adicionar curso</button>
+  <button id="generate" type="button">Gerar authorized.js</button>
+</div>
+<p id="status" class="muted" aria-live="polite"></p>
+</section>
+<section class="box">
+<strong>Como funciona</strong>
+<p class="muted">O arquivo final contém os cursos, os hashes dos telefones e os links protegidos por AES-GCM/PBKDF2. Os telefones em texto puro não são gravados no <code>authorized.js</code>.</p>
+<p class="small">Números com DDD + 8 dígitos são normalizados para DDD + 9 dígitos. Entradas inválidas são rejeitadas.</p>
+</section>
+</main>
+<script>
+const LOOKUP_SALT_BASE='curso-2026-public-lookup-v3-9d4e71';
+const DERIVE_SALT_BASE='curso-2026-public-derive-v3-a81f03';
+const ITERATIONS=180000;
+const enc=new TextEncoder();
+let courseCounter=0;
+
+function slugify(value){
+ return String(value??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,60);
+}
+function normalizePhone(value){
+ let d=String(value??'').replace(/\D/g,'');
+ if(d.startsWith('55')&&(d.length===12||d.length===13)) d=d.slice(2);
+ if(d.length!==10&&d.length!==11) return null;
+ let sub=d.slice(2);
+ if(sub.length===8) sub='9'+sub;
+ if(sub.length!==9) return null;
+ return d.slice(0,2)+sub;
+}
+async function sha256Hex(text){
+ const data=await crypto.subtle.digest('SHA-256',enc.encode(text));
+ return Array.from(new Uint8Array(data),b=>b.toString(16).padStart(2,'0')).join('');
+}
+async function deriveKey(phone,saltText){
+ const base=await crypto.subtle.importKey('raw',enc.encode(phone),{name:'PBKDF2'},false,['deriveKey']);
+ return crypto.subtle.deriveKey({name:'PBKDF2',salt:enc.encode(saltText),iterations:ITERATIONS,hash:'SHA-256'},base,{name:'AES-GCM',length:256},false,['encrypt']);
+}
+function b64(bytes){let out='';for(const b of bytes)out+=String.fromCharCode(b);return btoa(out)}
+async function encryptLink(phone,link,saltText){
+ const key=await deriveKey(phone,saltText);
+ const iv=crypto.getRandomValues(new Uint8Array(12));
+ const result=await crypto.subtle.encrypt({name:'AES-GCM',iv},key,enc.encode(link));
+ return {iv:b64(iv),ciphertext:b64(new Uint8Array(result))};
+}
+function downloadFile(text){
+ const blob=new Blob([text],{type:'application/javascript;charset=utf-8'});
+ const url=URL.createObjectURL(blob);
+ const a=document.createElement('a');a.href=url;a.download='authorized.js';a.click();
+ setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+function addCourse(initial={}){
+ courseCounter++;
+ const wrapper=document.createElement('section');
+ wrapper.className='course';
+ wrapper.dataset.course=String(courseCounter);
+ wrapper.innerHTML=`
+   <div class="course-grid">
+     <div><label>Nome do curso</label><input class="title" type="text" placeholder="Ex.: Curso Básico de Inteligência Artificial" value="${escapeHtml(initial.title||'')}"></div>
+     <div><label>Identificador (opcional)</label><input class="id" type="text" placeholder="Ex.: ia-basico" value="${escapeHtml(initial.id||'')}"></div>
+   </div>
+   <label>Descrição (opcional)</label>
+   <input class="description" type="text" placeholder="Ex.: Grupo de alunos — Turma 2026" value="${escapeHtml(initial.description||'')}">
+   <label>Link do grupo do WhatsApp</label>
+   <input class="link" type="url" placeholder="https://chat.whatsapp.com/..." value="${escapeHtml(initial.link||'')}">
+   <label>Telefones autorizados — um por linha</label>
+   <textarea class="phones" rows="10" placeholder="(74) 99109-2486\n(74) 99819-1858\n(71) 99937-7514">${escapeHtml(initial.phones||'')}</textarea>
+   <div class="toolbar"><button class="danger remove" type="button">Remover este curso</button></div>`;
+ document.getElementById('courses').appendChild(wrapper);
+ wrapper.querySelector('.remove').addEventListener('click',()=>wrapper.remove());
+}
+function escapeHtml(v){return String(v??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+
+document.getElementById('addCourse').addEventListener('click',()=>addCourse());
+addCourse();
+
+document.getElementById('generate').addEventListener('click',async()=>{
+ const status=document.getElementById('status');
+ status.className='muted';status.textContent='Gerando...';
+ try{
+  const blocks=[...document.querySelectorAll('.course')];
+  if(!blocks.length) throw new Error('courses');
+  const courses=[];
+  const usedIds=new Set();
+  let totalValid=0,totalInvalid=0;
+
+  for(const block of blocks){
+   const title=block.querySelector('.title').value.trim();
+   const requestedId=block.querySelector('.id').value.trim();
+   const id=slugify(requestedId||title);
+   const description=block.querySelector('.description').value.trim();
+   const link=block.querySelector('.link').value.trim();
+   if(!title||!id) throw new Error('title');
+   if(usedIds.has(id)) throw new Error('duplicate');
+   usedIds.add(id);
+   const parsed=new URL(link);
+   if(parsed.protocol!=='https:'||parsed.hostname!=='chat.whatsapp.com') throw new Error('link');
+
+   const raw=block.querySelector('.phones').value.split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
+   const seen=new Set(),valid=[],invalid=[];
+   for(const item of raw){const p=normalizePhone(item);if(!p){invalid.push(item);continue}if(!seen.has(p)){seen.add(p);valid.push(p)}}
+   if(!valid.length) throw new Error('phones');
+
+   const lookupSalt=`${LOOKUP_SALT_BASE}:${id}`;
+   const deriveSalt=`${DERIVE_SALT_BASE}:${id}`;
+   const records=[];
+   for(const phone of valid){
+     const hash=await sha256Hex(`${lookupSalt}:${phone}`);
+     records.push({hash,...await encryptLink(phone,link,deriveSalt)});
+   }
+   courses.push({id,title,description,records});
+   totalValid+=valid.length; totalInvalid+=invalid.length;
+  }
+
+  const payload={version:3,lookupSaltBase:LOOKUP_SALT_BASE,deriveSaltBase:DERIVE_SALT_BASE,pbkdf2Iterations:ITERATIONS,sessionHours:8,courses};
+  downloadFile('/* GERADO OFFLINE */\nwindow.AUTHORIZED = '+JSON.stringify(payload,null,2)+';\n');
+  status.className='ok';status.textContent=`Gerado com ${courses.length} curso(s), ${totalValid} telefone(s) válido(s) e ${totalInvalid} entrada(s) rejeitada(s).`;
+ }catch(e){
+  console.error(e);status.className='err';
+  status.textContent=e.message==='courses'?'Adicione pelo menos um curso.':e.message==='title'?'Todo curso precisa de nome e identificador válido.':e.message==='duplicate'?'Existem identificadores de cursos repetidos.':e.message==='link'?'Informe um link HTTPS válido do WhatsApp em cada curso.':e.message==='phones'?'Cada curso precisa de pelo menos um telefone válido.':'Não foi possível gerar o arquivo neste navegador.';
+ }
+});
+</script>
+</body>
+</html>

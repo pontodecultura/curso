@@ -1,0 +1,109 @@
+:root {
+  --bg: #0b1120;
+  --card: #111827;
+  --line: #243041;
+  --text: #f3f4f6;
+  --muted: #9ca3af;
+  --accent: #22c55e;
+  --primary: #2563eb;
+  --danger: #f87171;
+  --ok: #86efac;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: Arial, Helvetica, sans-serif;
+  background: radial-gradient(circle at top, #172033, var(--bg) 55%);
+  color: var(--text);
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.container { width: min(100%, 520px); }
+
+.card {
+  background: rgba(17, 24, 39, .97);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 28px;
+  box-shadow: 0 18px 50px rgba(0,0,0,.35);
+}
+
+.brand {
+  font-size: 12px;
+  letter-spacing: .18em;
+  color: #60a5fa;
+  margin-bottom: 14px;
+}
+
+h1, h2 { margin: 0 0 12px; }
+.muted { color: var(--muted); line-height: 1.55; }
+
+label {
+  display: block;
+  margin: 22px 0 8px;
+  font-weight: 700;
+}
+
+input, select {
+  width: 100%;
+  padding: 15px;
+  border-radius: 12px;
+  border: 1px solid #374151;
+  background: #0f172a;
+  color: #fff;
+  font-size: 18px;
+  letter-spacing: .03em;
+  outline: none;
+}
+
+input:focus, select:focus {
+  border-color: #60a5fa;
+  box-shadow: 0 0 0 3px rgba(96,165,250,.12);
+}
+
+button, .whatsapp {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  margin-top: 14px;
+  padding: 14px 16px;
+  border: 0;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 15px;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+button { background: var(--primary); color: #fff; }
+button:disabled { opacity: .55; cursor: wait; }
+.whatsapp { background: var(--accent); color: #052e16; }
+.secondary { background: #1f2937; color: #d1d5db; }
+
+.status { min-height: 22px; margin-top: 14px; font-size: 14px; }
+.status.error { color: var(--danger); }
+.status.ok { color: var(--ok); }
+
+.help-inline, footer {
+  color: #6b7280;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.help-inline { margin-top: 7px; }
+footer { text-align: center; margin-top: 14px; }
+.course-name { margin: 0 0 10px; font-weight: 700; color: #fff; }
+
+.success { color: var(--ok); font-weight: 700; font-size: 13px; letter-spacing: .08em; margin-bottom: 12px; }
+.hidden { display: none; }
+
+@media (max-width: 520px) {
+  body { padding: 14px; }
+  .card { padding: 22px; }
+}
